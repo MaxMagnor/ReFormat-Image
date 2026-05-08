@@ -1,0 +1,12 @@
+.idea/
+.venv/
+.pytest_cache/
+.pytest_tmp/
+pytest-cache-files-*/
+.tmp/
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+ReFormatImage.spec
