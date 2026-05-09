@@ -26,6 +26,8 @@ REQUIRED_FORMATS: dict[str, ImageFormat] = {
     "webp": ImageFormat("webp", "WebP", "WEBP", (".webp",), lossy=True),
     "bmp": ImageFormat("bmp", "BMP", "BMP", (".bmp",)),
     "tiff": ImageFormat("tiff", "TIFF", "TIFF", (".tiff", ".tif")),
+    "gif": ImageFormat("gif", "GIF", "GIF", (".gif",)),
+    "ico": ImageFormat("ico", "ICO", "ICO", (".ico",)),
 }
 
 ALIASES: dict[str, str] = {
@@ -37,11 +39,9 @@ ALIASES: dict[str, str] = {
 OPTIONAL_FORMATS: dict[str, ImageFormat] = {
     "avif": ImageFormat("avif", "AVIF", "AVIF", (".avif",), lossy=True, optional=True),
     "heif": ImageFormat("heif", "HEIF", "HEIF", (".heif", ".heic"), optional=True),
-    "ico": ImageFormat("ico", "ICO", "ICO", (".ico",), optional=True),
-    "gif": ImageFormat("gif", "GIF", "GIF", (".gif",), optional=True),
 }
 
-REQUIRED_CONTEXT_MENU_TARGETS = ("png", "jpg", "webp", "bmp", "tiff")
+REQUIRED_CONTEXT_MENU_TARGETS = ("png", "jpg", "webp", "bmp", "tiff", "gif", "ico")
 
 
 def normalize_format_name(value: str) -> str:

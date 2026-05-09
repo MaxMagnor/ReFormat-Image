@@ -11,7 +11,7 @@ from .formats import REQUIRED_CONTEXT_MENU_TARGETS, REQUIRED_FORMATS
 MENU_KEY_NAME = "ReFormatImage"
 MENU_TITLE = "ReFormat Image"
 REGISTRY_ROOT = r"Software\Classes\SystemFileAssociations"
-IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff")
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff", ".gif", ".ico")
 
 
 class ShellIntegrationError(RuntimeError):
@@ -87,7 +87,9 @@ def planned_registry_commands(executable_path: str | Path) -> list[RegistryComma
 
 def resolve_executable_path() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve()
+        current = Path(sys.executable).resolve()
+        helper = current.with_name("ReFormatImageContext.exe")
+        return helper if helper.exists() else current
 
     # Development mode: use the running Python interpreter and module entrypoint.
     return Path(sys.executable).resolve()

@@ -29,4 +29,17 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     src\reformat_image\cli.py
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+& $VenvPython -m PyInstaller `
+    --onefile `
+    --noconsole `
+    --name ReFormatImageContext `
+    --clean `
+    --paths src `
+    src\reformat_image\cli.py
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+Copy-Item -LiteralPath dist\ReFormatImage.exe -Destination dist\reformat.exe -Force
+
 Write-Host "Built dist\ReFormatImage.exe"
+Write-Host "Built dist\ReFormatImageContext.exe"
+Write-Host "Built dist\reformat.exe"

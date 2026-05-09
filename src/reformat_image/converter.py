@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
+import tempfile
 
 from PIL import Image, ImageColor, ImageOps, UnidentifiedImageError
 
@@ -17,10 +19,13 @@ class ConversionResult:
     source_path: Path
     output_path: Path
     warnings: tuple[str, ...]
+    deleted_original: bool = False
 
 
-def next_available_output_path(source_path: Path, target_format: ImageFormat) -> Path:
+def next_available_output_path(source_path: Path, target_format: ImageFormat, *, overwrite_existing: bool = False) -> Path:
     base = source_path.with_suffix(target_format.primary_extension)
+    if overwrite_existing:
+        return base
     if not base.exists():
         return base
 
@@ -46,11 +51,18 @@ def convert_image(
     source: str | Path,
     to_format: str,
     *,
-    quality: int = 90,
+    quality: int | None = None,
+    jpg_quality: int = 90,
+    webp_quality: int = 90,
+    webp_lossless: bool = False,
     background: str = "#FFFFFF",
+    overwrite_existing: bool = False,
+    delete_original_after_conversion: bool = False,
+    preserve_metadata: bool = True,
 ) -> ConversionResult:
-    if not 1 <= quality <= 100:
-        raise ConversionError("Quality must be between 1 and 100.")
+    for label, value in {"quality": quality, "jpg_quality": jpg_quality, "webp_quality": webp_quality}.items():
+        if value is not None and not 1 <= value <= 100:
+            raise ConversionError(f"{label} must be between 1 and 100.")
 
     source_path = Path(source).expanduser()
     if not source_path.exists():
@@ -65,7 +77,10 @@ def convert_image(
     if source_format is None:
         raise ConversionError(f"Unsupported input format: {source_path.suffix or '(none)'}")
 
-    output_path = next_available_output_path(source_path, target_format)
+    output_path = next_available_output_path(source_path, target_format, overwrite_existing=overwrite_existing)
+    if _same_path(source_path, output_path):
+        raise ConversionError("Source and output path are the same. In-place conversion is not supported.")
+
     warnings: list[str] = []
 
     try:
@@ -74,16 +89,22 @@ def convert_image(
                 raise ConversionError("Animated images are not supported yet.")
 
             image = ImageOps.exif_transpose(opened)
-            save_kwargs = _metadata_kwargs(opened, target_format)
+            save_kwargs = _metadata_kwargs(opened, target_format) if preserve_metadata else {}
             converted = _prepare_image(image, target_format, background, warnings)
-            _add_quality_kwargs(save_kwargs, target_format, quality)
+            _add_quality_kwargs(
+                save_kwargs,
+                target_format,
+                quality=_quality_for_format(target_format, quality, jpg_quality, webp_quality),
+                webp_lossless=webp_lossless,
+            )
 
             if target_format.lossy:
                 warnings.append(f"{target_format.label} output may use lossy compression.")
-            warnings.append("Some metadata may not be preserved.")
+            if preserve_metadata:
+                warnings.append("Some metadata may not be preserved.")
 
             try:
-                converted.save(output_path, target_format.pillow_format, **save_kwargs)
+                _save_image(converted, output_path, target_format, overwrite_existing=overwrite_existing, save_kwargs=save_kwargs)
             except OSError as exc:
                 raise ConversionError(f"Could not save {target_format.label}: {exc}") from exc
     except UnidentifiedImageError as exc:
@@ -91,7 +112,22 @@ def convert_image(
     except OSError as exc:
         raise ConversionError(f"Could not open image file: {exc}") from exc
 
-    return ConversionResult(source_path=source_path, output_path=output_path, warnings=tuple(dict.fromkeys(warnings)))
+    deleted_original = False
+    if delete_original_after_conversion:
+        if not output_path.exists():
+            raise ConversionError("Converted file was not created; original file was preserved.")
+        try:
+            source_path.unlink()
+            deleted_original = True
+        except OSError as exc:
+            raise ConversionError(f"Converted file was created, but the original could not be deleted: {exc}") from exc
+
+    return ConversionResult(
+        source_path=source_path,
+        output_path=output_path,
+        warnings=tuple(dict.fromkeys(warnings)),
+        deleted_original=deleted_original,
+    )
 
 
 def _target_format(to_format: str) -> ImageFormat:
@@ -128,6 +164,9 @@ def _prepare_image(
     if target_format.key == "bmp" and image.mode not in {"RGB", "RGBA"}:
         return image.convert("RGB")
 
+    if target_format.key in {"gif", "ico"} and image.mode not in {"RGB", "RGBA", "P"}:
+        return image.convert("RGBA")
+
     if image.mode == "P" and target_format.key not in {"gif", "png"}:
         return image.convert("RGBA" if _has_transparency(image) else "RGB")
 
@@ -154,8 +193,48 @@ def _metadata_kwargs(source_image: Image.Image, target_format: ImageFormat) -> d
     return kwargs
 
 
-def _add_quality_kwargs(save_kwargs: dict[str, object], target_format: ImageFormat, quality: int) -> None:
-    if target_format.key in {"jpg", "webp"}:
+def _add_quality_kwargs(save_kwargs: dict[str, object], target_format: ImageFormat, *, quality: int, webp_lossless: bool) -> None:
+    if target_format.key == "webp" and webp_lossless:
+        save_kwargs["lossless"] = True
+    if target_format.key in {"jpg", "webp"} and not (target_format.key == "webp" and webp_lossless):
         save_kwargs["quality"] = quality
     if target_format.key == "jpg":
         save_kwargs["optimize"] = True
+
+
+def _quality_for_format(target_format: ImageFormat, quality: int | None, jpg_quality: int, webp_quality: int) -> int:
+    if quality is not None:
+        return quality
+    if target_format.key == "webp":
+        return webp_quality
+    return jpg_quality
+
+
+def _save_image(
+    image: Image.Image,
+    output_path: Path,
+    target_format: ImageFormat,
+    *,
+    overwrite_existing: bool,
+    save_kwargs: dict[str, object],
+) -> None:
+    if target_format.key == "ico":
+        save_kwargs.setdefault("sizes", [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+
+    if not overwrite_existing:
+        image.save(output_path, target_format.pillow_format, **save_kwargs)
+        return
+
+    fd, temp_name = tempfile.mkstemp(prefix=f".{output_path.stem}.", suffix=output_path.suffix, dir=output_path.parent)
+    os.close(fd)
+    Path(temp_name).unlink(missing_ok=True)
+    temp_path = Path(temp_name)
+    try:
+        image.save(temp_path, target_format.pillow_format, **save_kwargs)
+        temp_path.replace(output_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def _same_path(left: Path, right: Path) -> bool:
+    return left.resolve().as_posix().casefold() == right.resolve().as_posix().casefold()

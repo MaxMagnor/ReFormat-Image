@@ -10,6 +10,8 @@ def test_required_output_format_aliases() -> None:
     assert required_output_format("jpeg").key == "jpg"
     assert required_output_format("tif").key == "tiff"
     assert required_output_format(".PNG").key == "png"
+    assert required_output_format("gif").key == "gif"
+    assert required_output_format("ico").key == "ico"
 
 
 def test_required_output_format_rejects_unknown() -> None:
