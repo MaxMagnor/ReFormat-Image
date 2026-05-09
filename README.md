@@ -196,16 +196,6 @@ Run from source:
 .\.venv\Scripts\python.exe -m reformat_image.cli --convert "C:\Images\test.webp" --to png
 ```
 
-## Making a Release
-
-1. Update the version in `pyproject.toml` and `src\reformat_image\__init__.py`.
-2. Run tests.
-3. Build with `powershell -ExecutionPolicy Bypass -File .\build.ps1 -Clean`.
-4. Create a GitHub release tag such as `v1.1.1`.
-5. Upload `dist\ReFormatImage.exe` as a release asset named exactly `ReFormatImage.exe`.
-
-The built-in updater depends on that release asset name staying stable.
-
 ## Limitations and Roadmap
 
 V1.1 keeps the Windows integration simple and safe by using registry context menu entries. It does not include a COM shell extension, batch conversion, animated image conversion, AVIF, or HEIC/HEIF.
