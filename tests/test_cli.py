@@ -26,6 +26,7 @@ def test_cli_settings_prints_human_help(monkeypatch, tmp_path: Path, capsys) -> 
     assert "Available settings:" in output
     assert "overwrite_existing" in output
     assert "--set name=value" in output
+    assert "reformat --set" not in output
 
 
 def test_cli_accepts_multiple_set_flags(monkeypatch, tmp_path: Path, capsys) -> None:

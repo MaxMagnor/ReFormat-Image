@@ -18,19 +18,16 @@ python -m venv .venv
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-The build writes three executables:
+The build writes one executable:
 
 ```text
-dist\ReFormatImage.exe         CLI executable
-dist\ReFormatImageContext.exe  hidden context-menu helper
-dist\reformat.exe              short CLI alias
+dist\ReFormatImage.exe
 ```
 
 Direct PyInstaller command:
 
 ```powershell
 .\.venv\Scripts\python.exe -m PyInstaller --onefile --name ReFormatImage --clean --paths src src\reformat_image\cli.py
-.\.venv\Scripts\python.exe -m PyInstaller --onefile --noconsole --name ReFormatImageContext --clean --paths src src\reformat_image\cli.py
 ```
 
 ## Install
@@ -43,11 +40,10 @@ ReFormatImage.exe --install
 
 This installs the context menu entries for the current Windows user under `HKCU`. Administrator access is not required.
 
-The install command also adds the executable folder to the current user's `PATH`. Open a new terminal after installation, then either command works from anywhere:
+The install command also adds the executable folder to the current user's `PATH`. Open a new terminal after installation, then this command works from anywhere:
 
 ```powershell
 ReFormatImage --help
-reformat --help
 ```
 
 To remove the entries:
@@ -71,9 +67,9 @@ ReFormat Image
   Convert to ICO
 ```
 
-Windows 10 shows these entries in the normal classic context menu. On Windows 11, v1.1 uses the classic context menu available through **Show more options**.
+Windows 10 shows these entries in the normal classic context menu. On Windows 11, v1.1.1 uses the classic context menu available through **Show more options**.
 
-The context menu uses `ReFormatImageContext.exe`, which is built without a console window. `ReFormatImage.exe` remains a normal console program so commands like `--help` and `--settings` print correctly.
+The context menu launches `ReFormatImage.exe` through a hidden Windows command, so normal Explorer conversions do not show a command window. The same executable remains a normal console program when you run commands like `--help` and `--settings`.
 
 ## Supported Formats
 
@@ -95,7 +91,6 @@ Help:
 
 ```powershell
 ReFormatImage.exe --help
-reformat --help
 ```
 
 ```powershell
@@ -119,7 +114,6 @@ Show the settings file path, current values, descriptions, and examples:
 
 ```powershell
 ReFormatImage.exe --settings
-reformat --settings
 ```
 
 Change settings:
@@ -187,7 +181,6 @@ ReFormatImage.exe --update
 ```
 
 The updater downloads the `ReFormatImage.exe` asset from the latest GitHub release, stages it under `%LOCALAPPDATA%\ReFormat Image\updates`, and replaces the current executable after it exits.
-If the release also includes `ReFormatImageContext.exe` and `reformat.exe`, those are updated at the same time.
 
 ## Development
 
@@ -208,13 +201,10 @@ Run from source:
 1. Update the version in `pyproject.toml` and `src\reformat_image\__init__.py`.
 2. Run tests.
 3. Build with `powershell -ExecutionPolicy Bypass -File .\build.ps1 -Clean`.
-4. Create a GitHub release tag such as `v1.1.0`.
-5. Upload these release assets with exact names:
-   - `ReFormatImage.exe`
-   - `ReFormatImageContext.exe`
-   - `reformat.exe`
+4. Create a GitHub release tag such as `v1.1.1`.
+5. Upload `dist\ReFormatImage.exe` as a release asset named exactly `ReFormatImage.exe`.
 
-The built-in updater depends on those release asset names staying stable.
+The built-in updater depends on that release asset name staying stable.
 
 ## Limitations and Roadmap
 

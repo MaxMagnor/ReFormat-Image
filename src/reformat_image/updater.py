@@ -15,7 +15,6 @@ from . import __version__
 
 LATEST_RELEASE_URL = "https://api.github.com/repos/MaxMagnor/ReFormat-Image/releases/latest"
 ASSET_NAME = "ReFormatImage.exe"
-OPTIONAL_ASSET_NAMES = ("ReFormatImageContext.exe", "reformat.exe")
 APP_DIR_NAME = "ReFormat Image"
 
 
@@ -40,7 +39,6 @@ class UpdateResult:
     message: str
     update_available: bool
     staged_path: Path | None = None
-    staged_paths: tuple[Path, ...] = ()
 
 
 def update_application(
@@ -57,15 +55,15 @@ def update_application(
     if _version_tuple(release.tag) <= _version_tuple(__version__):
         return UpdateResult(f"ReFormat Image is already up to date ({__version__}).", False)
 
-    staged_paths = _download_release_assets(release, release.tag)
-    helper_path = create_replacement_helper(exe_path, staged_paths)
+    asset = _find_asset(release, ASSET_NAME)
+    staged_path = download_asset(asset.download_url, release.tag, asset.name)
+    helper_path = create_replacement_helper(exe_path, staged_path)
     if launch_helper:
         subprocess.Popen(["cmd.exe", "/c", str(helper_path)], creationflags=_creation_flags())
     return UpdateResult(
         f"Update {release.tag} downloaded. ReFormat Image will replace itself after exit.",
         True,
-        staged_paths[0],
-        staged_paths,
+        staged_path,
     )
 
 
@@ -113,21 +111,16 @@ def update_dir() -> Path:
     return Path.home() / "AppData" / "Local" / APP_DIR_NAME / "updates"
 
 
-def create_replacement_helper(current_exe: Path, staged_exes: Path | tuple[Path, ...]) -> Path:
-    staged_paths = (staged_exes,) if isinstance(staged_exes, Path) else staged_exes
-    helper_path = staged_paths[0].with_suffix(".cmd")
-    install_dir = current_exe.parent
-    move_lines = []
-    for staged_path in staged_paths:
-        target = install_dir / staged_path.name
-        move_lines.append(f'move /y "{staged_path}" "{target}" >nul')
-        move_lines.append("if errorlevel 1 goto wait")
+def create_replacement_helper(current_exe: Path, staged_exe: Path) -> Path:
+    helper_path = staged_exe.with_suffix(".cmd")
     script = f"""@echo off
 setlocal
 set "TARGET={current_exe}"
+set "SOURCE={staged_exe}"
 :wait
 timeout /t 1 /nobreak >nul
-{os.linesep.join(move_lines)}
+move /y "%SOURCE%" "%TARGET%" >nul
+if errorlevel 1 goto wait
 start "" "%TARGET%"
 endlocal
 """
@@ -146,17 +139,6 @@ def _find_asset(release: ReleaseInfo, name: str) -> ReleaseAsset:
         if asset.name == name:
             return asset
     raise UpdateError(f"Latest release does not include {name}.")
-
-
-def _download_release_assets(release: ReleaseInfo, release_tag: str) -> tuple[Path, ...]:
-    required = _find_asset(release, ASSET_NAME)
-    assets_by_name = {asset.name: asset for asset in release.assets}
-    staged = [download_asset(required.download_url, release_tag, required.name)]
-    for name in OPTIONAL_ASSET_NAMES:
-        asset = assets_by_name.get(name)
-        if asset is not None:
-            staged.append(download_asset(asset.download_url, release_tag, asset.name))
-    return tuple(staged)
 
 
 def _version_tuple(value: str) -> tuple[int, ...]:

@@ -106,7 +106,6 @@ def settings_help(settings: Settings) -> str:
         "",
         "Change a setting:",
         "  ReFormatImage.exe --set name=value",
-        "  reformat --set name=value",
         "",
         "Available settings:",
     ]

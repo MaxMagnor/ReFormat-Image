@@ -14,7 +14,7 @@ def test_update_application_rejects_source_run() -> None:
 
 
 def test_update_application_reports_current_when_no_newer_release(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(updater, "fetch_latest_release", lambda _url: ReleaseInfo("v1.1.0", ()))
+    monkeypatch.setattr(updater, "fetch_latest_release", lambda _url: ReleaseInfo("v1.1.1", ()))
 
     result = update_application(current_exe=tmp_path / "ReFormatImage.exe", launch_helper=False)
 
@@ -42,31 +42,6 @@ def test_update_application_stages_newer_asset(monkeypatch: pytest.MonkeyPatch, 
 
     assert result.update_available is True
     assert result.staged_path == staged
-    assert result.staged_paths == (staged,)
-
-
-def test_update_application_stages_optional_assets(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    def fake_download(_url: str, _tag: str, name: str = "ReFormatImage.exe") -> Path:
-        return tmp_path / name
-
-    monkeypatch.setattr(
-        updater,
-        "fetch_latest_release",
-        lambda _url: ReleaseInfo(
-            "v1.2.0",
-            (
-                ReleaseAsset("ReFormatImage.exe", "https://example.invalid/ReFormatImage.exe"),
-                ReleaseAsset("ReFormatImageContext.exe", "https://example.invalid/ReFormatImageContext.exe"),
-                ReleaseAsset("reformat.exe", "https://example.invalid/reformat.exe"),
-            ),
-        ),
-    )
-    monkeypatch.setattr(updater, "download_asset", fake_download)
-    monkeypatch.setattr(updater, "create_replacement_helper", lambda _current, _staged: tmp_path / "helper.cmd")
-
-    result = update_application(current_exe=tmp_path / "ReFormatImage.exe", launch_helper=False)
-
-    assert [path.name for path in result.staged_paths] == ["ReFormatImage.exe", "ReFormatImageContext.exe", "reformat.exe"]
 
 
 def test_create_replacement_helper_contains_move_command(tmp_path: Path) -> None:

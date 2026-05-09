@@ -18,9 +18,13 @@ def test_planned_registry_commands_cover_required_menu_items() -> None:
 
 
 def test_registry_command_uses_expected_executable_arguments() -> None:
-    command = planned_registry_commands(r"C:\Tools\ReFormatImageContext.exe")[0]
+    command = planned_registry_commands(r"C:\Tools\ReFormatImage.exe")[0]
 
-    assert command.command == r'"C:\Tools\ReFormatImageContext.exe" --convert "%1" --to png'
+    assert "powershell.exe" in command.command
+    assert "-WindowStyle Hidden" in command.command
+    assert r"C:\Tools\ReFormatImage.exe" in command.command
+    assert "--convert $args[0] --to png" in command.command
+    assert '"%1"' in command.command
     assert r"Software\Classes\SystemFileAssociations" in command.menu_path
 
 

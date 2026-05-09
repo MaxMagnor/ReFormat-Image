@@ -87,9 +87,7 @@ def planned_registry_commands(executable_path: str | Path) -> list[RegistryComma
 
 def resolve_executable_path() -> Path:
     if getattr(sys, "frozen", False):
-        current = Path(sys.executable).resolve()
-        helper = current.with_name("ReFormatImageContext.exe")
-        return helper if helper.exists() else current
+        return Path(sys.executable).resolve()
 
     # Development mode: use the running Python interpreter and module entrypoint.
     return Path(sys.executable).resolve()
@@ -99,7 +97,13 @@ def build_command(executable_path: str | Path, target_format: str) -> str:
     exe = Path(executable_path)
     if exe.name.lower().startswith("python"):
         return f'"{exe}" -m reformat_image.cli --convert "%1" --to {target_format}'
-    return f'"{exe}" --convert "%1" --to {target_format}'
+    exe_literal = _powershell_single_quoted(str(exe))
+    command = f"& {exe_literal} --convert $args[0] --to {target_format}"
+    return f'powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command "{command}" "%1"'
+
+
+def _powershell_single_quoted(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def _menu_key_path(extension: str) -> str:
